@@ -88,7 +88,9 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int wakeup; // Time in ticks to wake up at
     struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem slelem; // List element for sleep thread list
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -137,5 +139,9 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+// Returns true if first thread wakeup time less than second
+// For sleeping list ordering
+bool wake_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 #endif /* threads/thread.h */

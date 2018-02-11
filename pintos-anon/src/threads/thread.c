@@ -139,6 +139,13 @@ thread_tick (void)
     intr_yield_on_return ();
 }
 
+// Returns true if first thread wakeup time less than second
+// For sleeping list ordering
+bool wake_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+  if (list_entry(a, struct thread, slelem)->wakeup < list_entry(b, struct thread, slelem)->wakeup) return true;
+  return false;
+}
+
 /* Prints thread statistics. */
 void
 thread_print_stats (void) 
