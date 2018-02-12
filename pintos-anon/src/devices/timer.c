@@ -30,6 +30,13 @@ static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
 
+// List of sleeping threads ordered by wake time
+// Got the idea to make this an ordered list from a solution on GitHub
+// mentioning TA's advice to avoid needing to check every sleeping thread
+// in the timer interrupt handler since now it only needs to check the first
+// entry/entries and not the whole list every time
+static struct list sleeping;
+
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
 void
@@ -37,6 +44,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(&sleeping); // Initalize sleeping thread list
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,11 +97,14 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
-
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  
+  struct thread *t = thread_current();
+  t->wakeup = ticks + timer_ticks();
+  enum intr_level old_level = intr_disable();
+  list_insert_ordered(&sleeping, &t->slelem, &wake_less, NULL);
+  thread_block();
+  intr_set_level(old_level);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +183,18 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+
+  // Wake up sleeping threads as needed
+  // Interrupts disabled so modifications to sleeping list don't affect us
+  struct thread *t;
+  enum intr_level old_level = intr_disable();
+  while(!(list_empty(&sleeping))) {
+    t = list_entry(list_begin(&sleeping), struct thread, slelem);
+    if (t->wakeup > timer_ticks()) break; // Break if not time to wake up
+    list_remove(&t->slelem);
+    thread_unblock(t);
+  }
+  intr_set_level(old_level);
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
