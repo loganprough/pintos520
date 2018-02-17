@@ -142,7 +142,14 @@ thread_tick (void)
 // Returns true if first thread wakeup time less than second
 // For sleeping list ordering
 bool wake_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
-  if (list_entry(a, struct thread, slelem)->wakeup < list_entry(b, struct thread, slelem)->wakeup) return true;
+  if (list_entry(a, struct thread, slelem)->wakeup <= list_entry(b, struct thread, slelem)->wakeup) return true;
+  return false;
+}
+
+// Function for sorting ready list by priority high to low
+// Puts process with same priority at the back of all with equal priority
+bool pri_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+  if (list_entry(a, struct thread, elem)->priority > list_entry(b, struct thread, elem)->priority) return true;
   return false;
 }
 
@@ -244,7 +251,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  // Insert ordering by priority
+  list_insert_ordered(&ready_list, &t->elem, &pri_less, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -315,7 +323,8 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    // Insert ordered by priority
+    list_insert_ordered(&ready_list, &cur->elem, &pri_less, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -342,7 +351,19 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread *t = thread_current();
+  t->priority = new_priority;
+  /*enum intr_level old_level = intr_disable();
+  list_remove(&t->elem);
+  list_insert_ordered(&ready_list, &t->elem, &pri_less, NULL);
+  intr_set_level(old_level);*/
+  thread_yield();
+}
+
+// Donate priority, only set if higher than current priority
+void thread_donate_priority(int new) {
+  struct thread *t = thread_current();
+  if (new > t->priority) thread_set_priority(new);
 }
 
 /* Returns the current thread's priority. */
@@ -500,6 +521,7 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
+    // Pops front, so list_less_func needs to make it sort backwards
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
