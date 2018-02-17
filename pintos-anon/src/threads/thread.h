@@ -144,4 +144,10 @@ int thread_get_load_avg (void);
 // For sleeping list ordering
 bool wake_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
+// For ordering by priority
+bool pri_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+// Donates thread priority, only changes if donated priority higher
+void thread_donate_priority(int new);
+
 #endif /* threads/thread.h */
