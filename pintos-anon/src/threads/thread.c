@@ -214,6 +214,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  thread_yield();
 
   return tid;
 }
@@ -352,15 +353,14 @@ void
 thread_set_priority (int new_priority) 
 {
   struct thread *t = thread_current();
+  enum intr_level old_level = intr_disable();
   t->priority = new_priority;
-  /*enum intr_level old_level = intr_disable();
-  list_remove(&t->elem);
-  list_insert_ordered(&ready_list, &t->elem, &pri_less, NULL);
-  intr_set_level(old_level);*/
   thread_yield();
+  intr_set_level(old_level);
 }
 
 // Donate priority, only set if higher than current priority
+// May need changed to include a thread to donate to
 void thread_donate_priority(int new) {
   struct thread *t = thread_current();
   if (new > t->priority) thread_set_priority(new);
