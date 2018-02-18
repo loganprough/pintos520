@@ -214,6 +214,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  thread_yield();
 
   return tid;
 }
@@ -353,24 +354,27 @@ thread_set_priority (int new_priority)
 {
   struct thread *t = thread_current();
   t->priority = new_priority;
-  /*enum intr_level old_level = intr_disable();
-  list_remove(&t->elem);
-  list_insert_ordered(&ready_list, &t->elem, &pri_less, NULL);
-  intr_set_level(old_level);*/
+  if (new_priority > t->epri) t->epri = new_priority;
   thread_yield();
 }
 
-// Donate priority, only set if higher than current priority
-void thread_donate_priority(int new) {
+// Donate priority new to thread t
+void thread_donate_priority(struct thread *t, int new) {
+  if (new > t->epri) t->epri = new;
+}
+
+// Return epri to priority after a lock is released
+void thread_return_donation() {
   struct thread *t = thread_current();
-  if (new > t->priority) thread_set_priority(new);
+  //t->epri = t->priority;
+  t->epri = 31;
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return thread_current()->epri;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -490,6 +494,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->epri = priority;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
