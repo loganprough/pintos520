@@ -353,24 +353,28 @@ void
 thread_set_priority (int new_priority) 
 {
   struct thread *t = thread_current();
-  enum intr_level old_level = intr_disable();
   t->priority = new_priority;
+  if (new_priority > t->epri) t->epri = new_priority;
   thread_yield();
-  intr_set_level(old_level);
 }
 
-// Donate priority, only set if higher than current priority
-// May need changed to include a thread to donate to
-void thread_donate_priority(int new) {
+// Donate priority new to thread t
+void thread_donate_priority(struct thread *t, int new) {
+  if (new > t->epri) t->epri = new;
+}
+
+// Return epri to priority after a lock is released
+void thread_return_donation() {
   struct thread *t = thread_current();
-  if (new > t->priority) thread_set_priority(new);
+  //t->epri = t->priority;
+  t->epri = 31;
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+  return thread_current()->epri;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -490,6 +494,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+  t->epri = priority;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
