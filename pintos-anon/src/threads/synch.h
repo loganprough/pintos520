@@ -4,6 +4,11 @@
 #include <list.h>
 #include <stdbool.h>
 
+struct int_elem {
+  int pri;
+  struct list_elem elem;
+};
+
 /* A counting semaphore. */
 struct semaphore 
   {

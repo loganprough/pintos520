@@ -153,6 +153,11 @@ bool pri_less(const struct list_elem *a, const struct list_elem *b, void *aux UN
   return false;
 }
 
+bool int_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+  if (list_entry(a, struct int_elem, elem)->pri > list_entry(b, struct int_elem, elem)->pri) return true;
+  return false;
+}
+
 /* Prints thread statistics. */
 void
 thread_print_stats (void) 
@@ -353,28 +358,37 @@ void
 thread_set_priority (int new_priority) 
 {
   struct thread *t = thread_current();
-  t->priority = new_priority;
-  if (new_priority > t->epri) t->epri = new_priority;
+  if (t->bpri == t->priority) t->priority = new_priority;
+  t->bpri = new_priority;
   thread_yield();
 }
 
 // Donate priority new to thread t
 void thread_donate_priority(struct thread *t, int new) {
-  if (new > t->epri) t->epri = new;
+  if (list_empty(&t->dons)) t->priority = new;
+  else {
+    struct int_elem p;
+    if (new > t->priority) {
+      p.pri = t->priority;
+      t->priority = new;
+    }
+    else p.pri = new;
+    list_insert_ordered(&t->dons, &p.elem, &int_less, NULL);
+  }
 }
 
-// Return epri to priority after a lock is released
+// Restore base priority after a lock is released
 void thread_return_donation() {
   struct thread *t = thread_current();
-  //t->epri = t->priority;
-  t->epri = 31;
+  if (list_empty(&t->dons)) t->priority = t->bpri;
+  else t->priority = list_entry(list_pop_front(&t->dons), struct int_elem, elem)->pri;
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current()->epri;
+  return thread_current()->priority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -494,8 +508,9 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
-  t->epri = priority;
+  t->bpri = priority;
   t->magic = THREAD_MAGIC;
+  list_init(&t->dons);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);

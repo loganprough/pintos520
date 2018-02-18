@@ -88,10 +88,11 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
-    int epri; // Effective priority
+    int bpri; // Base priority
     int wakeup; // Time in ticks to wake up at
     struct list_elem allelem;           /* List element for all threads list. */
     struct list_elem slelem; // List element for sleep thread list
+    struct list dons; // Donated priorities
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -147,6 +148,7 @@ bool wake_less(const struct list_elem *a, const struct list_elem *b, void *aux U
 
 // For ordering by priority
 bool pri_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+bool int_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
 
 // Donates thread priority, only changes if donated priority higher
 void thread_donate_priority(struct thread *t, int new);

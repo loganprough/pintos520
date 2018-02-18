@@ -237,7 +237,7 @@ lock_release (struct lock *lock)
 
   lock->holder = NULL;
   sema_up (&lock->semaphore);
-  //thread_return_donation();
+  thread_return_donation();
 }
 
 /* Returns true if the current thread holds LOCK, false
