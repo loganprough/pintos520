@@ -357,31 +357,24 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  enum intr_level old = intr_disable();
   struct thread *t = thread_current();
   if (t->bpri == t->priority) t->priority = new_priority;
   t->bpri = new_priority;
   thread_yield();
+  intr_set_level(old);
 }
 
 // Donate priority new to thread t
 void thread_donate_priority(struct thread *t, int new) {
-  if (list_empty(&t->dons)) t->priority = new;
-  else {
-    struct int_elem p;
-    if (new > t->priority) {
-      p.pri = t->priority;
-      t->priority = new;
-    }
-    else p.pri = new;
-    list_insert_ordered(&t->dons, &p.elem, &int_less, NULL);
-  }
+  if (t->priority < new) t->priority = new;
+  if (t->waiting != NULL && t->waiting->holder != NULL) thread_donate_priority(t->waiting->holder, thread_get_priority());
 }
 
 // Restore base priority after a lock is released
 void thread_return_donation() {
   struct thread *t = thread_current();
-  if (list_empty(&t->dons)) t->priority = t->bpri;
-  else t->priority = list_entry(list_pop_front(&t->dons), struct int_elem, elem)->pri;
+  t->priority = t->bpri;
 }
 
 /* Returns the current thread's priority. */

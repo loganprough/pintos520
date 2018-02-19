@@ -92,7 +92,9 @@ struct thread
     int wakeup; // Time in ticks to wake up at
     struct list_elem allelem;           /* List element for all threads list. */
     struct list_elem slelem; // List element for sleep thread list
+    struct list_elem delem; // List element for priority donation
     struct list dons; // Donated priorities
+    struct lock *waiting; // Lock waiting on
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
