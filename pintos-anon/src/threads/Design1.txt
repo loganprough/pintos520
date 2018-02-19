@@ -7,7 +7,7 @@ CIS 520 - Programming Project #1
 >> Fill in the names and email addresses of your group members.
 
 Logan Prough loganprough@ksu.edu
-FirstName LastName <email@k-state.edu>
+Mark McGuire mmcguir8@ksu.edu
 
 ---- PRELIMINARIES ----
 
