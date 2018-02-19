@@ -374,8 +374,12 @@ thread_set_priority (int new_priority)
 
 // Donate priority new to thread t
 void thread_donate_priority(struct thread *t, int new) {
+  // Add donation to list and take it if it's better
+  enum intr_level old = intr_disable();
+  list_insert_ordered(&t->dons, &thread_current()->delem, &pri_less, NULL);
   if (t->priority < new) t->priority = new;
   if (t->waiting != NULL && t->waiting->holder != NULL) thread_donate_priority(t->waiting->holder, thread_get_priority());
+  intr_set_level(old);
 }
 
 // Restore base priority after a lock is released
