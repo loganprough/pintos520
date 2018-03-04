@@ -16,5 +16,9 @@ static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   printf ("system call!\n");
-  thread_exit ();
+  // find out which syscall and do it
+  switch((int)f->esp) {
+    case SYS_WRITE:
+    default: thread_exit();
+  }
 }
