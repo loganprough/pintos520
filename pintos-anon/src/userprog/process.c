@@ -225,7 +225,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // Get first token (file name)
   char *save_ptr;
   file = filesys_open (strtok_r((char *)file_name, " ", &save_ptr));
-  *save_ptr = ' ';
+  if (*(save_ptr - 1) == 0) *(save_ptr - 1) = ' ';
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -435,7 +435,6 @@ setup_stack (void **esp, const char *file_name)
   uint8_t *kpage;
   bool success = false;
   char *fn_copy, *fn_cpy;
-
   // Make two copies of file_name so strtok_r() can modify it
   // Code copied from provided code
   fn_copy = palloc_get_page (0);
@@ -461,7 +460,6 @@ setup_stack (void **esp, const char *file_name)
   int argc = 0;
   char *token, *save_ptr;
   for (token = strtok_r(fn_cpy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) argc++;
-  //printf("\nargc = %d\n\n", argc);
 
   // allocate argv and push arguments to stack
   *esp = PHYS_BASE;
