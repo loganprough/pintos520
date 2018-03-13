@@ -225,7 +225,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // Get first token (file name)
   char *save_ptr;
   file = filesys_open (strtok_r((char *)file_name, " ", &save_ptr));
-  *(save_ptr - 1) = ' ';
+  *save_ptr = ' ';
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -434,14 +434,18 @@ setup_stack (void **esp, const char *file_name)
 {
   uint8_t *kpage;
   bool success = false;
-  char *fn_copy;
+  char *fn_copy, *fn_cpy;
 
-  // Make a copy of file_name so strtok_r() can modify it
+  // Make two copies of file_name so strtok_r() can modify it
   // Code copied from provided code
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy(fn_copy, file_name, PGSIZE);
+  fn_cpy = palloc_get_page (0);
+  if (fn_cpy == NULL)
+    return TID_ERROR;
+  strlcpy(fn_cpy, file_name, PGSIZE);
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
@@ -456,32 +460,37 @@ setup_stack (void **esp, const char *file_name)
   // Count command line arguments
   int argc = 0;
   char *token, *save_ptr;
-  for (token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) { *(save_ptr - 1) = ' '; argc++; }
-  // debug
-  printf("\nargc = %d\n\n", argc);
+  for (token = strtok_r(fn_cpy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) argc++;
+  //printf("\nargc = %d\n\n", argc);
 
   // allocate argv and push arguments to stack
   *esp = PHYS_BASE;
-  char *argv[argc];
+  int *argv[argc];
   int i = 0, len;
   for (token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
-    len = strlen(token);
+    len = strlen(token) + 1;
     *esp -= len;
     argv[i++] = *esp;
     memcpy(*esp, token, len);
+    //printf("\nToken: %s\nPushed to stack: %s\n", token, (char *)*esp);
   }
 
+  //for(int i = 0; i < argc; i++) printf("\nargv[%d] = %s\n", i, (char *)argv[i]);
+  *esp -= 4;
+  *(int *)*esp = 0;
+
   // push argv and argc to the stack
-  for(int i = 0; argv[i] != 0; i++) {
+  for(int i = argc - 1; i >= 0; i--) {
     *esp -= 4;
-    *(char *)esp = (int)argv[i];
+    *(int *)*esp = (int)argv[i];
   }
 
   *esp -= 4;
   *(int *)*esp = (int)(*esp + 4);
   *esp -= 4;
   *(int *)*esp = argc;
-  
+  *esp -= 4;
+  *(int *)*esp = 0;
 
   return success;
 }
