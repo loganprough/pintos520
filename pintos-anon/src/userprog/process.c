@@ -64,7 +64,7 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
-    thread_exit ();
+    thread_exit (0);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
