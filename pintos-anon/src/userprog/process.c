@@ -37,7 +37,7 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+ 
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
@@ -64,7 +64,7 @@ start_process (void *file_name_)
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) 
-    thread_exit ();
+    thread_exit (0);
 
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -88,8 +88,11 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  
+	return -1;
 }
+
+// TODO add functionality for finding children processes for the wait function.
 
 /* Free the current process's resources. */
 void
@@ -195,7 +198,7 @@ struct Elf32_Phdr
 #define PF_W 2          /* Writable. */
 #define PF_R 4          /* Readable. */
 
-static bool setup_stack (void **esp);
+static bool setup_stack (void **esp, const char *file_name);
 static bool validate_segment (const struct Elf32_Phdr *, struct file *);
 static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
@@ -222,7 +225,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  // Get first token (file name)
+  char *save_ptr;
+  file = filesys_open (strtok_r((char *)file_name, " ", &save_ptr));
+  if (*(save_ptr - 1) == 0) *(save_ptr - 1) = ' ';
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -302,7 +308,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack (esp, file_name))
     goto done;
 
   /* Start address. */
@@ -427,10 +433,21 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool
-setup_stack (void **esp) 
+setup_stack (void **esp, const char *file_name) 
 {
   uint8_t *kpage;
   bool success = false;
+  char *fn_copy, *fn_cpy;
+  // Make two copies of file_name so strtok_r() can modify it
+  // Code copied from provided code
+  fn_copy = palloc_get_page (0);
+  if (fn_copy == NULL)
+    return TID_ERROR;
+  strlcpy(fn_copy, file_name, PGSIZE);
+  fn_cpy = palloc_get_page (0);
+  if (fn_cpy == NULL)
+    return TID_ERROR;
+  strlcpy(fn_cpy, file_name, PGSIZE);
 
   kpage = palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
@@ -441,6 +458,41 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+
+  // Count command line arguments
+  int argc = 0;
+  char *token, *save_ptr;
+  for (token = strtok_r(fn_cpy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) argc++;
+
+  // allocate argv and push arguments to stack
+  *esp = PHYS_BASE;
+  int *argv[argc];
+  int i = 0, len;
+  for (token = strtok_r(fn_copy, " ", &save_ptr); token != NULL; token = strtok_r(NULL, " ", &save_ptr)) {
+    len = strlen(token) + 1;
+    *esp -= len;
+    argv[i++] = *esp;
+    memcpy(*esp, token, len);
+    //printf("\nToken: %s\nPushed to stack: %s\n", token, (char *)*esp);
+  }
+
+  //for(int i = 0; i < argc; i++) printf("\nargv[%d] = %s\n", i, (char *)argv[i]);
+  *esp -= 4;
+  *(int *)*esp = 0;
+
+  // push argv and argc to the stack
+  for(int i = argc - 1; i >= 0; i--) {
+    *esp -= 4;
+    *(int *)*esp = (int)argv[i];
+  }
+
+  *esp -= 4;
+  *(int *)*esp = (int)(*esp + 4);
+  *esp -= 4;
+  *(int *)*esp = argc;
+  *esp -= 4;
+  *(int *)*esp = 0;
+
   return success;
 }
 

@@ -88,7 +88,13 @@ struct thread
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
+    int bpri; // Base priority
+    int wakeup; // Time in ticks to wake up at
     struct list_elem allelem;           /* List element for all threads list. */
+    struct list_elem slelem; // List element for sleep thread list
+    struct list_elem delem; // List element for priority donation
+    struct list dons; // Donated priorities
+    struct lock *waiting; // Lock waiting on
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -96,6 +102,8 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
+    struct list list_fds;
+    struct list list_children;
 #endif
 
     /* Owned by thread.c. */
@@ -123,7 +131,7 @@ struct thread *thread_current (void);
 tid_t thread_tid (void);
 const char *thread_name (void);
 
-void thread_exit (void) NO_RETURN;
+void thread_exit (int status) NO_RETURN;
 void thread_yield (void);
 
 /* Performs some operation on thread t, given auxiliary data AUX. */
@@ -137,5 +145,19 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+// Returns true if first thread wakeup time less than second
+// For sleeping list ordering
+bool wake_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+// For ordering by priority
+bool pri_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+bool int_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+// Donates thread priority, only changes if donated priority higher
+void thread_donate_priority(struct thread *t, int new);
+
+// Returns donated priority
+void thread_return_donation(void);
 
 #endif /* threads/thread.h */

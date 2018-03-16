@@ -1,0 +1,260 @@
+
+CIS 520 - Programming Project #1
+
+                   
+---- GROUP ----
+
+>> Fill in the names and email addresses of your group members.
+
+Logan Prough loganprough@ksu.edu
+Mark McGuire mmcguir8@ksu.edu
+
+---- PRELIMINARIES ----
+
+>> If you have any preliminary comments on your submission, notes for
+>> the TA, or extra credit, please give them here.
+
+>> Please cite any offline or online sources you consulted while
+>> preparing your submission, other than the Pintos documentation,
+>> course text, lecture notes, and course staff.
+
+The design doc for this solution on GitHub:
+https://github.com/ryantimwilson/Pintos-Project-1/blob/master/src/threads/DESIGNDOC
+
+Some code from this solution on GitHub when we tried to get lists for priority donation working:
+https://github.com/yuan901202/pintos_1/tree/master/src/threads
+
+
+                 ALARM CLOCK
+                 ===========
+
+---- DATA STRUCTURES ----
+
+>> A1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+In timer.c:
+
+static struct list sleeping; // List of sleeping threads ordered by wakeup time
+
+
+In thread.h/thread.c:
+
+struct thread {
+  ...
+  int wakeup; // Time to wake up in ticks
+  struct list_elem slelem; // List element for sleep list
+  ...
+}
+
+// Used to order the list of sleeping threads by wakeup time
+bool wake_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+
+
+---- ALGORITHMS ----
+
+>> A2: Briefly describe what happens in a call to your timer_sleep(),
+>> including the effects of the timer interrupt handler.
+
+1. The thread's wakeup variable gets set to the number of ticks to sleep 
+for plus the current timer ticks
+
+2. Interrupts get disabled for modifications to the sleeping list
+
+3. The thread is inserted in the sleeping list, ordered by wakeup time
+
+4. The thread is blocked
+
+5. Interrupts are restored to their previous state
+
+The timer interrupt handler checks the first thread in the sleeping list. 
+If it is not time to wake it up it breaks, otherwise it wakes it up and
+continues through the loop until it reaches the first thread in the list 
+that doesn't need woken or no sleeping threads remain. 
+
+>> A3: What steps are taken to minimize the amount of time spent in
+>> the timer interrupt handler?
+
+Initially the timer interrupt handler was going to check every thread for
+a boolean to indicate if it was asleep and if so check its wakeup time and
+wake it up if needed. After thinking of a better way I decided to put the
+sleeping threads in a list of their own so not every thread needs checked.
+This was an improvement but I thought there still must be a better way, so 
+I read part of the design doc cited above that mentions a TA's advice to 
+sort the sleeping list so the interrupt handler only needs to check the 
+first thread instead of the entire list every time.
+
+
+---- SYNCHRONIZATION ----
+
+>> A4: How are race conditions avoided when multiple threads call
+>> timer_sleep() simultaneously?
+
+Interrupts are disabled whenever the sleeping process list is read or modified.
+We considered using a lock instead of disabling interrupts, but interrupt 
+handlers can't acquire locks and the code running without interrupts is so 
+short it isn't harmful. Interrupts also need to be disabled when calling 
+thread_block anyway.
+
+
+>> A5: How are race conditions avoided when a timer interrupt occurs
+>> during a call to timer_sleep()?
+
+Interrupts are disabled when the sleeping list is being read or modified so 
+the timer interrupt handler cannot run and read the sleeping list while it 
+is being modified.
+
+
+---- RATIONALE ----
+
+>> A6: Why did you choose this design?  In what ways is it superior to
+>> other designs that you considered?
+
+As mentioned above, we moved from a design that checks every thread to one 
+that checks every sleeping thread to one that only checks the first N threads
+that need to be woken up in an ordered list. Ordering the list has minimal 
+performance penalty since the list_insert_ordered function runs in O(n) time.
+The time saved in the interrupt handler is well worth this penalty because 
+overall less time is spent with interrupts disabled.
+
+
+             PRIORITY SCHEDULING
+             ===================
+
+---- DATA STRUCTURES ----
+
+>> B1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+// Needed to sort lists of threads by priority
+bool pri_less(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED);
+
+// Donates priority new to thread t
+void thread_donate_priority(struct thread *t, int new);
+
+struct thread {
+  ...
+  int bpri; // Base priority without donation
+  ...
+}
+
+// Drops donated priority once lock is released
+void thread_return_donation();
+
+struct list_elem delem; // List element for priority donation lists
+struct lock *waiting; // Lock this thread is waiting on
+struct list dons; // List of thread donating priority to us, ordered by priority
+
+
+>> B2: Explain the data structure used to track priority donation.
+
+
+---- ALGORITHMS ----
+
+>> B3: How do you ensure that the highest priority thread waiting for
+>> a lock, semaphore, or condition variable wakes up first?
+
+We use lists ordered by priority in non-increasing order and wake up
+the first thread on the list. A new thread is placed behind all threads
+of the same priority so FIFO order is preserved amongst threads of equal
+priority.
+
+
+>> B4: Describe the sequence of events when a call to lock_acquire()
+>> causes a priority donation.  How is nested donation handled?
+
+The lock_acquire() function checks if the lock is currently held and if so,
+the calling thread tries to donate its priority to the holder with a call
+to thread_donate_priority(holder, my_priority). Nested donation works because
+each thread has an element for the lock it's waiting on, so thread_donate()
+checks if a thread it donates to is waiting on a lock and if so recursively
+donates its priority to the process holding the lock the other process is
+waiting for.
+
+>> B5: Describe the sequence of events when lock_release() is called
+>> on a lock that a higher-priority thread is waiting for.
+
+The lock_holder becomes null, the semaphore is upped, and the thread that
+had the lock drops the privileges that were donated to it. The high
+priority thread gets the lock next thanks to lists ordered by priority
+in non-increasing order.
+
+
+---- SYNCHRONIZATION ----
+
+>> B6: Describe a potential race in thread_set_priority() and explain
+>> how your implementation avoids it.  Can you use a lock to avoid
+>> this race?
+
+The set_priority function checks if it is waiting on a lock and tries
+to donate a new priority to the holder if the new priority is higher.
+This could cause a race condition if the thread holding the lock
+releases it while the set_priority function tries to donate a priority
+to it. To avoid this, interrupts are disabled. We could not use a lock
+to avoid this race because a lock on the holder of a lock would require
+another lock on the holder of that lock, creating a recursive requirement
+for locks that could never be satisfied.
+
+
+---- RATIONALE ----
+
+>> B7: Why did you choose this design?  In what ways is it superior to
+>> another design you considered?
+
+We chose this design because it is simple and makes sense. We tried to
+use a list of donating threads similar to other solutions on GitHub (cited
+above) to get priority-donate-multiple and priority-donate-chain to work
+but ran out of time and reverted to our simpler implementation. Lesson
+learned: start sooner. We like that the thread_donate_priority function
+uses recursive calls because there is no limit on the depth of nested
+donation (until we run out of stack space).
+
+
+
+              ADVANCED SCHEDULER [EXTRA CREDIT]
+              =================================
+
+---- DATA STRUCTURES ----
+
+>> C1: Copy here the declaration of each new or changed `struct' or
+>> `struct' member, global or static variable, `typedef', or
+>> enumeration.  Identify the purpose of each in 25 words or less.
+
+---- ALGORITHMS ----
+
+>> C2: Suppose threads A, B, and C have nice values 0, 1, and 2.  Each
+>> has a recent_cpu value of 0.  Fill in the table below showing the
+>> scheduling decision and the priority and recent_cpu values for each
+>> thread after each given number of timer ticks:
+
+timer  recent_cpu    priority   thread
+ticks   A   B   C   A   B   C   to run
+-----  --  --  --  --  --  --   ------
+ 0
+ 4
+ 8
+12
+16
+20
+24
+28
+32
+36
+
+>> C3: Did any ambiguities in the scheduler specification make values
+>> in the table uncertain?  If so, what rule did you use to resolve
+>> them?  Does this match the behavior of your scheduler?
+
+>> C4: How is the way you divided the cost of scheduling between code
+>> inside and outside interrupt context likely to affect performance?
+
+---- RATIONALE ----
+
+>> C5: Briefly critique your design, pointing out advantages and
+>> disadvantages in your design choices.  If you were to have extra
+>> time to work on this part of the project, how might you choose to
+>> refine or improve your design?
+
