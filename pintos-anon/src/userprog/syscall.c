@@ -8,6 +8,8 @@
 #include "filesys/filesys.h"
 #include "filesys/file.h"
 #include "threads/palloc.h"
+#include "threads/vaddr.h"
+#include "userprog/pagedir.h"
 #include <string.h>
 
 static void syscall_handler (struct intr_frame *);
@@ -90,35 +92,61 @@ struct fd_struct *fd_item(int fd) {
   return NULL;
 }
 
+int sys_wait(pid_t pid) {
+	return process_wait(pid);
+}
+
+// Both of the following two functions are derived from ryantimwilson's work
+// Reference: https://github.com/ryantimwilson/Pintos-Project-2/blob/master/src/userprog/syscall.c :298
+void is_pointer_valid(const void *vaddr) {
+	if (!is_user_vaddr(vaddr) || vaddr < 0x08048000) {
+		exit(-1);
+	}
+}
+
+int user_kernal_conversion(const void *vaddr)
+{
+	is_pointer_valid(vaddr);
+	void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
+	if (!ptr)
+	{
+		exit(-1);
+	}
+	return (int)ptr;
+}
+
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
   //printf ("system call!\n");
   int retval = 0;
 
-  // TODO check if stack pointer is valid
+  // checks if stack pointer is valid
+  is_pointer_valid(f->esp);
 
   // find out which syscall and do it
   int *p = f->esp;
   int number = *p;
-  switch(number) {
-    case SYS_WRITE:
-      // Call sys_write with parameters. Referenced https://github.com/pindexis/pintos-project2/blob/master/userprog/syscall.c to get some of the typecasts to stop complaining
-      sys_write(*(int *)(f->esp + 4), *(char **)(f->esp + 8), *(unsigned int *)(f->esp + 12)); break;
-    case SYS_WAIT: while(1){}; break; // TODO actually implement wait
-    case SYS_HALT: shutdown(); break;
-    case SYS_EXIT: thread_exit(*((int *)f->esp + 1)); break; // TODO make sure pointer valid
-    case SYS_EXEC: retval = process_execute(*(char **)(f->esp + 4)); break; // TODO make sure pointer valid
-    case SYS_CREATE: retval = filesys_create(*(char **)(f->esp + 4), *(int *)(f->esp + 8)); break; // TODO ^^
-    case SYS_REMOVE: retval = filesys_remove(*(char **)(f->esp + 4)); break; // TODO ^^
-    case SYS_OPEN: sys_open(*(char **)(f->esp + 4)); break; // TODO ^^
-    case SYS_CLOSE: sys_close(*(int *)(f->esp + 4)); break; // TODO ^^
-    case SYS_READ: sys_read(*(int *)(f->esp + 4), *(char **)(f->esp + 8), *(unsigned int *)(f->esp + 12)); break; // TODO ^^
-    case SYS_SEEK: sys_seek(*(int *)(f->esp + 4), *(unsigned int *)(f->esp + 8)); break; // TODO ^^
-    case SYS_TELL: sys_tell(*(int *)(f->esp + 4)); break; // TODO ^^
-    case SYS_FILESIZE: sys_filesize(*(int *)(f->esp + 4)); break; // TODO ^^
-    default: thread_exit(0);
-  }
+  switch (number) {
+  case SYS_WRITE:
+	  // Call sys_write with parameters. Referenced https://github.com/pindexis/pintos-project2/blob/master/userprog/syscall.c to get some of the typecasts to stop complaining
+	  sys_write(*(int *)(f->esp + 4), *(char **)(f->esp + 8), *(unsigned int *)(f->esp + 12)); break;
+  case SYS_WAIT: while (1) {}; break; // TODO actually implement wait
+  case SYS_HALT: shutdown(); break;
+  case SYS_EXIT: thread_exit(*((int *)f->esp + 1)); break; // TODO make sure pointer valid
+  case SYS_EXEC: retval = process_execute(*(char **)(f->esp + 4)); break; // TODO make sure pointer valid
+  case SYS_CREATE: retval = filesys_create(*(char **)(f->esp + 4), *(int *)(f->esp + 8)); break; // TODO ^^
+  case SYS_REMOVE: retval = filesys_remove(*(char **)(f->esp + 4)); break; // TODO ^^
+  case SYS_OPEN: sys_open(*(char **)(f->esp + 4)); break; // TODO ^^
+  case SYS_CLOSE: sys_close(*(int *)(f->esp + 4)); break; // TODO ^^
+  case SYS_READ: sys_read(*(int *)(f->esp + 4), *(char **)(f->esp + 8), *(unsigned int *)(f->esp + 12)); break; // TODO ^^
+  case SYS_SEEK: sys_seek(*(int *)(f->esp + 4), *(unsigned int *)(f->esp + 8)); break; // TODO ^^
+  case SYS_TELL: sys_tell(*(int *)(f->esp + 4)); break; // TODO ^^
+  case SYS_FILESIZE: sys_filesize(*(int *)(f->esp + 4)); break; // TODO ^^
+  default: thread_exit(0);
+
+  
+ }
 
   if (retval < 0) thread_exit(retval); // Syscall went wrong
 }
