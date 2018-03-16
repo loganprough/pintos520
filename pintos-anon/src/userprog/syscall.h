@@ -21,4 +21,11 @@ struct fd_struct {
   struct file *file;
   struct list_elem felem;
 };
+
+struct child_struct {
+  int id;
+  bool exited;
+  int status;
+  struct list_elem celem;
+};
 #endif /* userprog/syscall.h */

@@ -1,4 +1,5 @@
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #include <debug.h>
 #include <inttypes.h>
 #include <round.h>
@@ -29,7 +30,7 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
-  tid_t tid;
+  //tid_t tid;
 
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
@@ -39,10 +40,13 @@ process_execute (const char *file_name)
   strlcpy (fn_copy, file_name, PGSIZE);
  
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
-  if (tid == TID_ERROR)
+  struct child_struct *child = palloc_get_page(PAL_ZERO);
+  child->exited = false;
+  child->id = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  if (child->id == TID_ERROR)
     palloc_free_page (fn_copy); 
-  return tid;
+  else list_push_front(&thread_current()->list_children, &child->celem);
+  return (tid_t)child->id;
 }
 
 /* A thread function that loads a user process and starts it

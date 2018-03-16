@@ -22,6 +22,7 @@ syscall_init (void)
 
 // Write to file or stdout
 int sys_write(int fd, char *s, unsigned int size) {
+  if (!(fd)) return -1; // STDIN has file descriptor 0
   if (fd == 1) { // STDOUT has file descriptor 1
     putbuf(s, size);
     return (int)size;
