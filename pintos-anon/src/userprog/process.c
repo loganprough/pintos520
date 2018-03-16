@@ -18,6 +18,8 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "threads/synch.h"
+#include "devices/timer.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -42,7 +44,8 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   struct child_struct *child = palloc_get_page(PAL_ZERO);
   child->exited = false;
-  child->id = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  char *save_ptr;
+  child->id = thread_create (strtok_r((char *)file_name, " ", &save_ptr), PRI_DEFAULT, start_process, fn_copy);
   if (child->id == TID_ERROR)
     palloc_free_page (fn_copy); 
   else list_push_front(&thread_current()->list_children, &child->celem);
@@ -92,8 +95,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  
-	return -1;
+	timer_sleep(10000);
+  return -1;
 }
 
 // TODO add functionality for finding children processes for the wait function.

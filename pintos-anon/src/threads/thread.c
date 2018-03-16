@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "userprog/syscall.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -217,6 +218,11 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  struct child_struct *child = palloc_get_page(PAL_ZERO);
+  child->exited = false;
+  child->id = tid;
+
+
   /* Add to run queue. */
   thread_unblock (t);
   thread_yield();
@@ -305,6 +311,7 @@ thread_exit (int status)
 
 #ifdef USERPROG
   process_exit ();
+  printf("%s: exit(%d)\n", thread_current()->name, status);
 #endif
 
   /* Remove thread from all threads list, set our status to dying,

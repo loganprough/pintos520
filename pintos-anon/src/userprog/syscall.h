@@ -10,6 +10,7 @@ int sys_seek(int fd, unsigned int pos);
 int sys_tell(int fd);
 int sys_filesize(int fd);
 int sys_wait(int pid);
+int sys_create(char *filename, int size);
 // Checks to see if the virtual address is a valid pointer
 // Reference: https://github.com/ryantimwilson/Pintos-Project-2/blob/master/src/userprog/syscall.c :298-304
 void is_pointer_valid(const void *vaddr);

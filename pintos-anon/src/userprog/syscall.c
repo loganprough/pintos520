@@ -79,6 +79,12 @@ int sys_filesize(int fd) {
   return file_length(fds->file);
 }
 
+int sys_create(char *filename, int size) {
+  if (filename == NULL || size < 0 || filename[0] == 0) return -1;
+  if (strlen(filename) > 14) filename[14] = 0;
+  return filesys_create(filename, size);
+}
+
 struct fd_struct *fd_item(int fd) {
   struct list_elem *e;
   struct list *list_fds = &thread_current()->list_fds;
@@ -101,7 +107,7 @@ int sys_wait(tid_t pid) {
 // Both of the following two functions are derived from ryantimwilson's work
 // Reference: https://github.com/ryantimwilson/Pintos-Project-2/blob/master/src/userprog/syscall.c :298
 void is_pointer_valid(const void *vaddr) {
-	if (!is_user_vaddr(vaddr) || vaddr < (void *)0x08048000) {
+	if (!is_user_vaddr(vaddr) || (unsigned int)vaddr < (unsigned int)0x08048000) {
 		thread_exit(-1);
 	}
 }
@@ -133,11 +139,11 @@ syscall_handler (struct intr_frame *f UNUSED)
   switch (number) {
   case SYS_WRITE:
 	  sys_write(*(int *)user_kernel_conversion(f->esp + 4), *(char **)user_kernel_conversion(f->esp + 8), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
-  case SYS_WAIT: while (1) {int x = 4; x++; int y = x / 2;}; break; // TODO actually implement wait
+  case SYS_WAIT: process_wait(*(int *)user_kernel_conversion(f->esp + 4)); break; // TODO actually implement wait
   case SYS_HALT: shutdown(); break;
   case SYS_EXIT: thread_exit(*(int *)user_kernel_conversion(f->esp + 4)); break;
   case SYS_EXEC: retval = process_execute(*(char **)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_CREATE: retval = filesys_create(*(char **)user_kernel_conversion(f->esp + 4), *(int *)user_kernel_conversion(f->esp + 8)); break;
+  case SYS_CREATE: retval = sys_create(*(char **)user_kernel_conversion(f->esp + 4), *(int *)user_kernel_conversion(f->esp + 8)); break;
   case SYS_REMOVE: retval = filesys_remove(*(char **)user_kernel_conversion(f->esp + 4)); break;
   case SYS_OPEN: sys_open(*(char **)user_kernel_conversion(f->esp + 4)); break;
   case SYS_CLOSE: sys_close(*(int *)user_kernel_conversion(f->esp + 4)); break;
