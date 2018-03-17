@@ -235,6 +235,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // Get first token (file name)
   char *save_ptr;
   file = filesys_open (strtok_r((char *)file_name, " ", &save_ptr));
+  file_deny_write(file);
   if (*(save_ptr - 1) == 0) *(save_ptr - 1) = ' ';
   if (file == NULL) 
     {
@@ -325,7 +326,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  if (!success) file_close (file);
   return success;
 }
 

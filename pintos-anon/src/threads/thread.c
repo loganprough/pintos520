@@ -218,9 +218,12 @@ thread_create (const char *name, int priority,
   sf->eip = switch_entry;
   sf->ebp = 0;
 
+  // Add to list of children
   struct child_struct *child = palloc_get_page(PAL_ZERO);
   child->exited = false;
   child->id = tid;
+  list_push_front(&thread_current()->list_children, &child->celem);
+  t->child = child;
 
 
   /* Add to run queue. */

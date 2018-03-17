@@ -6,6 +6,7 @@
 #include "filesys/free-map.h"
 #include "filesys/inode.h"
 #include "filesys/directory.h"
+#include <stdio.h>
 
 /* Partition that contains the file system. */
 struct block *fs_device;
@@ -68,7 +69,6 @@ filesys_open (const char *name)
 {
   struct dir *dir = dir_open_root ();
   struct inode *inode = NULL;
-
   if (dir != NULL)
     dir_lookup (dir, name, &inode);
   dir_close (dir);

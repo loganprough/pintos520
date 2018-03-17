@@ -34,11 +34,13 @@ int sys_write(int fd, char *s, unsigned int size) {
 }
 
 int sys_open(char *filename) {
-  if (filename == NULL) return -1;
+  if (filename == NULL || filename[0] == 0) return -1;
+  //printf("\n\nopening: %s\n\n", filename);
+  struct file *f = filesys_open(filename);
+  if (f == NULL) return -1;
+  //printf("\nfile is not null\n");
   struct fd_struct *fds = palloc_get_page(PAL_ZERO);
   memset(fds, 0, sizeof(*fds));
-  fds->file = filesys_open(filename);
-  //TODO make sure filesys_open worked
   struct list lfds = thread_current()->list_fds;
   if (list_empty(&lfds)) fds->fd = 3;
   else fds->fd = list_entry(list_front(&lfds), struct fd_struct, felem)->fd + 1;
@@ -55,6 +57,7 @@ int sys_close(int fd) {
 }
 
 int sys_read(int fd, char *s, unsigned int size) {
+  if (size <= 0) return 0;
   struct fd_struct *fds;
   if ((fds = fd_item(fd)) == NULL) return -1;
   return file_read(fds->file, s, size);
@@ -81,7 +84,7 @@ int sys_filesize(int fd) {
 
 int sys_create(char *filename, int size) {
   if (filename == NULL || size < 0 || filename[0] == 0) return -1;
-  if (strlen(filename) > 14) filename[14] = 0;
+  if (strlen(filename) > 14) return 0;
   return filesys_create(filename, size);
 }
 
@@ -145,14 +148,16 @@ syscall_handler (struct intr_frame *f UNUSED)
   case SYS_EXEC: retval = process_execute(*(char **)user_kernel_conversion(f->esp + 4)); break;
   case SYS_CREATE: retval = sys_create(*(char **)user_kernel_conversion(f->esp + 4), *(int *)user_kernel_conversion(f->esp + 8)); break;
   case SYS_REMOVE: retval = filesys_remove(*(char **)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_OPEN: sys_open(*(char **)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_CLOSE: sys_close(*(int *)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_READ: sys_read(*(int *)user_kernel_conversion(f->esp + 4), *(char **)user_kernel_conversion(f->esp + 8), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
-  case SYS_SEEK: sys_seek(*(int *)user_kernel_conversion(f->esp + 4), *(unsigned int *)user_kernel_conversion(f->esp + 8)); break;
-  case SYS_TELL: sys_tell(*(int *)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_FILESIZE: sys_filesize(*(int *)user_kernel_conversion(f->esp + 4)); break;
+  case SYS_OPEN: retval = sys_open(*(char **)user_kernel_conversion(f->esp + 4)); break;
+  case SYS_CLOSE: retval = sys_close(*(int *)user_kernel_conversion(f->esp + 4)); break;
+  case SYS_READ: retval = sys_read(*(int *)user_kernel_conversion(f->esp + 4), *(char **)user_kernel_conversion(f->esp + 8), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
+  case SYS_SEEK: retval = sys_seek(*(int *)user_kernel_conversion(f->esp + 4), *(unsigned int *)user_kernel_conversion(f->esp + 8)); break;
+  case SYS_TELL: retval = sys_tell(*(int *)user_kernel_conversion(f->esp + 4)); break;
+  case SYS_FILESIZE: retval = sys_filesize(*(int *)user_kernel_conversion(f->esp + 4)); break;
   default: thread_exit(0);
  }
 
-  if (retval < 0) thread_exit(retval); // Syscall went wrong
+  //printf("\n\nretval is %d, num is %d\n\n", retval, number);
+  if (retval == -1 && number == SYS_CREATE) thread_exit(retval); // Syscall went wrong
+  f->eax = retval;
 }
