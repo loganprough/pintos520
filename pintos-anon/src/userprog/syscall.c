@@ -22,7 +22,6 @@ syscall_init (void)
 
 // Write to file or stdout
 int sys_write(int fd, char *s, unsigned int size) {
-  //if (fd > 1) printf("\nwrite fd is %d, s is %s, size is %d\n\n", fd, s, size);
   if (!(fd)) return -1; // STDIN has file descriptor 0
   if (fd == 1) { // STDOUT has file descriptor 1
     putbuf(s, size);
@@ -30,7 +29,7 @@ int sys_write(int fd, char *s, unsigned int size) {
   }
   // Otherwise, write out to the file
   struct fd_struct *fds;
-  if ((fds = fd_item(fd)) == NULL) {/*printf("\nfd not found\n\n");*/ return -1;}
+  if ((fds = fd_item(fd)) == NULL) return -1;
   return file_write(fds->file, s, size);
 }
 
@@ -150,7 +149,7 @@ syscall_handler (struct intr_frame *f UNUSED)
 	// Call system functions with parameters. Referenced https://github.com/pindexis/pintos-project2/blob/master/userprog/syscall.c to get some of the typecasts to stop complaining
   switch (number) {
   case SYS_WRITE:
-	  sys_write(*(int *)user_kernel_conversion(f->esp + 4), verify_string(*(char **)(f->esp + 8)), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
+	  retval = sys_write(*(int *)user_kernel_conversion(f->esp + 4), verify_string(*(char **)(f->esp + 8)), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
   case SYS_WAIT: process_wait(*(int *)user_kernel_conversion(f->esp + 4)); break; // TODO actually implement wait
   case SYS_HALT: shutdown(); break;
   case SYS_EXIT: thread_exit(*(int *)user_kernel_conversion(f->esp + 4)); break;
