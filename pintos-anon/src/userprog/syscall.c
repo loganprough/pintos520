@@ -34,8 +34,8 @@ int sys_write(int fd, char *s, unsigned int size) {
 }
 
 int sys_open(char *filename) {
-  if (filename == NULL || filename[0] == 0) return -1;
   //printf("\n\nopening: %s\n\n", filename);
+  if (filename == NULL || filename[0] == 0) return -1;
   struct file *f = filesys_open(filename);
   if (f == NULL) return -1;
   //printf("\nfile is not null\n");
@@ -83,7 +83,9 @@ int sys_filesize(int fd) {
 }
 
 int sys_create(char *filename, int size) {
-  if (filename == NULL || size < 0 || filename[0] == 0) return -1;
+  //printf("\n\nTrying to create \"%s\"\n\n", filename);
+  if ((filename == NULL) || (size < 0) || (filename[0] == 0)) return -1;
+  //printf("filename[0] is \"%d\"\n\n", filename[0]);
   if (strlen(filename) > 14) return 0;
   return filesys_create(filename, size);
 }
@@ -110,20 +112,21 @@ int sys_wait(tid_t pid) {
 // Both of the following two functions are derived from ryantimwilson's work
 // Reference: https://github.com/ryantimwilson/Pintos-Project-2/blob/master/src/userprog/syscall.c :298
 void is_pointer_valid(const void *vaddr) {
-	if (!is_user_vaddr(vaddr) || (unsigned int)vaddr < (unsigned int)0x08048000) {
-		thread_exit(-1);
-	}
+  //printf("\n\nChecking pointer %p\n\n", vaddr);
+  if ((!(is_user_vaddr(vaddr))) || (!(is_user_vaddr(vaddr))) || ((unsigned int)vaddr < (unsigned int)0x08048000)) thread_exit(-1);
 }
 
 int user_kernel_conversion(const void *vaddr)
 {
 	is_pointer_valid(vaddr);
 	void *ptr = pagedir_get_page(thread_current()->pagedir, vaddr);
-	if (!ptr)
-	{
-		thread_exit(-1);
-	}
+	if (!ptr) thread_exit(-1);
 	return (int)ptr;
+}
+
+char *verify_string(char *addr) {
+  user_kernel_conversion(addr);
+  return addr;
 }
 
 static void
@@ -132,25 +135,22 @@ syscall_handler (struct intr_frame *f UNUSED)
   //printf ("system call!\n");
   int retval = 0;
 
-  // checks if stack pointer is valid
-  is_pointer_valid(f->esp);
-
   // find out which syscall and do it
-  int *p = f->esp;
+  int *p = (int *)user_kernel_conversion(f->esp);
   int number = *p;
 	// Call system functions with parameters. Referenced https://github.com/pindexis/pintos-project2/blob/master/userprog/syscall.c to get some of the typecasts to stop complaining
   switch (number) {
   case SYS_WRITE:
-	  sys_write(*(int *)user_kernel_conversion(f->esp + 4), *(char **)user_kernel_conversion(f->esp + 8), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
+	  sys_write(*(int *)user_kernel_conversion(f->esp + 4), verify_string(*(char **)user_kernel_conversion(f->esp + 8)), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
   case SYS_WAIT: process_wait(*(int *)user_kernel_conversion(f->esp + 4)); break; // TODO actually implement wait
   case SYS_HALT: shutdown(); break;
   case SYS_EXIT: thread_exit(*(int *)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_EXEC: retval = process_execute(*(char **)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_CREATE: retval = sys_create(*(char **)user_kernel_conversion(f->esp + 4), *(int *)user_kernel_conversion(f->esp + 8)); break;
-  case SYS_REMOVE: retval = filesys_remove(*(char **)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_OPEN: retval = sys_open(*(char **)user_kernel_conversion(f->esp + 4)); break;
+  case SYS_EXEC: retval = process_execute(verify_string(*(char **)user_kernel_conversion(f->esp + 4))); break;
+  case SYS_CREATE: retval = sys_create(verify_string(*(char **)user_kernel_conversion(f->esp + 4)), *(int *)user_kernel_conversion(f->esp + 8)); break;
+  case SYS_REMOVE: retval = filesys_remove(verify_string(*(char **)user_kernel_conversion(f->esp + 4))); break;
+  case SYS_OPEN: retval = sys_open(verify_string(*(char **)user_kernel_conversion(f->esp + 4))); break;
   case SYS_CLOSE: retval = sys_close(*(int *)user_kernel_conversion(f->esp + 4)); break;
-  case SYS_READ: retval = sys_read(*(int *)user_kernel_conversion(f->esp + 4), *(char **)user_kernel_conversion(f->esp + 8), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
+  case SYS_READ: retval = sys_read(*(int *)user_kernel_conversion(f->esp + 4), verify_string(*(char **)user_kernel_conversion(f->esp + 8)), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
   case SYS_SEEK: retval = sys_seek(*(int *)user_kernel_conversion(f->esp + 4), *(unsigned int *)user_kernel_conversion(f->esp + 8)); break;
   case SYS_TELL: retval = sys_tell(*(int *)user_kernel_conversion(f->esp + 4)); break;
   case SYS_FILESIZE: retval = sys_filesize(*(int *)user_kernel_conversion(f->esp + 4)); break;
@@ -158,6 +158,6 @@ syscall_handler (struct intr_frame *f UNUSED)
  }
 
   //printf("\n\nretval is %d, num is %d\n\n", retval, number);
-  if (retval == -1 && number == SYS_CREATE) thread_exit(retval); // Syscall went wrong
+  if (retval == -1 && number == SYS_CREATE) thread_exit(retval); // Create went wrong
   f->eax = retval;
 }

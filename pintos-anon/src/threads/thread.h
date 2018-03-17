@@ -4,8 +4,6 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-//#include "userprog/syscall.h"
-//#include "userprog/process.h"
 
 /* States in a thread's life cycle. */
 enum thread_status

@@ -95,8 +95,19 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-	timer_sleep(10000);
-  return -1;
+  struct list_elem *e;
+  struct list *lc = &thread_current()->list_children;
+  struct child_struct *child = NULL;
+  for(e = list_begin(lc); e != list_end(lc); e = list_next(e)) {
+    struct child_struct *c = list_entry(e, struct child_struct, celem);
+    if (c->id == (int)child_tid) child = c;
+  }
+
+  if (child == NULL) return -1;
+
+  while(!(child->exited)) thread_yield(); // Busy-wait for child to exit
+  timer_sleep(20000);
+  return child->status;
 }
 
 // TODO add functionality for finding children processes for the wait function.

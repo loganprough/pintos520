@@ -313,6 +313,8 @@ thread_exit (int status)
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
+  thread_current()->child->status = status;
+  thread_current()->child->exited = true;
   process_exit ();
   printf("%s: exit(%d)\n", thread_current()->name, status);
 #endif
