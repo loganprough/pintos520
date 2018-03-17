@@ -90,6 +90,7 @@ struct thread
     int priority;                       /* Priority. */
     int bpri; // Base priority
     int wakeup; // Time in ticks to wake up at
+    int nextfd;
     struct list_elem allelem;           /* List element for all threads list. */
     struct list_elem slelem; // List element for sleep thread list
     struct list_elem delem; // List element for priority donation

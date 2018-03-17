@@ -528,6 +528,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->magic = THREAD_MAGIC;
   list_init(&t->dons);
 #ifdef USERPROG
+  t->nextfd = 3;
   list_init(&t->list_fds);
   list_init(&t->list_children);
 #endif
