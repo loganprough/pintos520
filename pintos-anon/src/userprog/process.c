@@ -31,6 +31,7 @@ static bool load (const char *cmdline, void (**eip) (void), void **esp);
 tid_t
 process_execute (const char *file_name) 
 {
+  //printf("\nin process_execute\n\n");
   char *fn_copy;
   //tid_t tid;
 
@@ -44,11 +45,14 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   struct child_struct *child = palloc_get_page(PAL_ZERO);
   child->exited = false;
-  char *save_ptr;
-  child->id = thread_create (strtok_r((char *)file_name, " ", &save_ptr), PRI_DEFAULT, start_process, fn_copy);
-  if (child->id == TID_ERROR)
-    palloc_free_page (fn_copy); 
-  else list_push_front(&thread_current()->list_children, &child->celem);
+  char *fn = palloc_get_page(PAL_ZERO);
+  for(int cur = 0; file_name[cur] != ' ' && cur < 128; cur++) fn[cur] = file_name[cur];
+  child->id = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
+  if (child->id == TID_ERROR) {
+    palloc_free_page (fn_copy);
+    return -1;
+  }
+  list_push_front(&thread_current()->list_children, &child->celem);
   return (tid_t)child->id;
 }
 
@@ -57,6 +61,7 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
+  //printf("\nin start_process\n\n");
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
@@ -109,8 +114,6 @@ process_wait (tid_t child_tid)
   timer_sleep(20000);
   return child->status;
 }
-
-// TODO add functionality for finding children processes for the wait function.
 
 /* Free the current process's resources. */
 void
@@ -229,6 +232,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+  //printf("\nin load\n\n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -246,14 +250,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   // Get first token (file name)
   char *save_ptr;
   file = filesys_open (strtok_r((char *)file_name, " ", &save_ptr));
-  file_deny_write(file);
   if (*(save_ptr - 1) == 0) *(save_ptr - 1) = ' ';
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
+      success = false;
       goto done; 
     }
 
+  file_deny_write(file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
