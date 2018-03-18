@@ -150,7 +150,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   switch (number) {
   case SYS_WRITE:
 	  retval = sys_write(*(int *)user_kernel_conversion(f->esp + 4), verify_string(*(char **)(f->esp + 8)), *(unsigned int *)user_kernel_conversion(f->esp + 12)); break;
-  case SYS_WAIT: process_wait(*(int *)user_kernel_conversion(f->esp + 4)); break; // TODO actually implement wait
+  case SYS_WAIT: retval = process_wait(*(int *)user_kernel_conversion(f->esp + 4)); break; // TODO actually implement wait
   case SYS_HALT: shutdown(); break;
   case SYS_EXIT: thread_exit(*(int *)user_kernel_conversion(f->esp + 4)); break;
   case SYS_EXEC: retval = process_execute(verify_string(*(char **)user_kernel_conversion(f->esp + 4))); break;
