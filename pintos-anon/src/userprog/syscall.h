@@ -2,6 +2,7 @@
 #define USERPROG_SYSCALL_H
 #include <list.h>
 #include "filesys/file.h"
+#include "threads/synch.h"
 
 void syscall_init (void);
 int sys_write(int fd, char *s, unsigned int size); // Handles write syscall
@@ -28,7 +29,7 @@ struct fd_struct {
 
 struct child_struct {
   int id;
-  bool exited;
+  struct semaphore exited;
   int status;
   struct list_elem celem;
 };

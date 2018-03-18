@@ -221,11 +221,10 @@ thread_create (const char *name, int priority,
 
   // Add to list of children
   struct child_struct *child = palloc_get_page(PAL_ZERO);
-  child->exited = false;
   child->id = tid;
+  sema_init(&child->exited, 0);
   list_push_front(&thread_current()->list_children, &child->celem);
   t->child = child;
-
 
   /* Add to run queue. */
   thread_unblock (t);
@@ -315,7 +314,7 @@ thread_exit (int status)
 
 #ifdef USERPROG
   thread_current()->child->status = status;
-  thread_current()->child->exited = true;
+  sema_up(&thread_current()->child->exited);
   process_exit ();
   printf("%s: exit(%d)\n", thread_current()->name, status);
 #endif
@@ -532,6 +531,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->nextfd = 3;
   list_init(&t->list_fds);
   list_init(&t->list_children);
+  
 #endif
 
   old_level = intr_disable ();

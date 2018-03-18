@@ -44,9 +44,12 @@ process_execute (const char *file_name)
  
   /* Create a new thread to execute FILE_NAME. */
   struct child_struct *child = palloc_get_page(PAL_ZERO);
-  child->exited = false;
   char *fn = palloc_get_page(PAL_ZERO);
   for(int cur = 0; file_name[cur] != ' ' && cur < 128; cur++) fn[cur] = file_name[cur];
+  // Make sure file exists before call to thread_create()
+  struct file *f = filesys_open(fn);
+  if (!f) return -1;
+  file_close(f);
   child->id = thread_create (fn, PRI_DEFAULT, start_process, fn_copy);
   if (child->id == TID_ERROR) {
     palloc_free_page (fn_copy);
@@ -109,8 +112,8 @@ process_wait (tid_t child_tid)
     if (c->id == (int)child_tid) child = c;
   }
 
-  if (child == NULL || child->status == 81) return -1;
-  while (!(child->exited)) thread_yield(); // Busy-wait for child to exit
+  if (child == NULL) return -1;
+  sema_down(&child->exited);
   timer_sleep(20000);
   return child->status;
 }
@@ -254,11 +257,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
-      success = false;
+      //success = false;
       goto done; 
     }
 
-  file_deny_write(file);
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -272,6 +274,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       goto done; 
     }
 
+  file_deny_write(file);
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 

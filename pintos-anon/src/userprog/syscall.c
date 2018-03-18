@@ -13,10 +13,12 @@
 #include <string.h>
 
 static void syscall_handler (struct intr_frame *);
+struct lock fs_lock;
 
 void
 syscall_init (void) 
 {
+  lock_init(&fs_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -30,7 +32,10 @@ int sys_write(int fd, char *s, unsigned int size) {
   // Otherwise, write out to the file
   struct fd_struct *fds;
   if ((fds = fd_item(fd)) == NULL) return -1;
-  return file_write(fds->file, s, size);
+  lock_acquire(&fs_lock);
+  int retval = file_write(fds->file, s, size);
+  lock_release(&fs_lock);
+  return retval;
 }
 
 int sys_open(char *filename) {
@@ -63,27 +68,38 @@ int sys_read(int fd, char *s, unsigned int size) {
   if (size <= 0) return 0;
   struct fd_struct *fds;
   if ((fds = fd_item(fd)) == NULL) return -1;
-  return file_read(fds->file, s, size);
+  lock_acquire(&fs_lock);
+  int retval = file_read(fds->file, s, size);
+  lock_release(&fs_lock);
+  return retval;
 }
 
 int sys_seek(int fd, unsigned int pos) {
   struct fd_struct *fds;
   if ((fds = fd_item(fd)) == NULL) return -1;
+  lock_acquire(&fs_lock);
   file_seek(fds->file, pos);
+  lock_release(&fs_lock);
   return 0;
 }
 
 int sys_tell(int fd) {
   struct fd_struct *fds;
   if ((fds = fd_item(fd)) == NULL) return -1;
-  return file_tell(fds->file);
+  lock_acquire(&fs_lock);
+  int retval = file_tell(fds->file);
+  lock_release(&fs_lock);
+  return retval;
 }
 
 int sys_filesize(int fd) {
   struct fd_struct *fds;
   if ((fds = fd_item(fd)) == NULL) return -1;
   //printf("\nfds not null\n\n");
-  return file_length(fds->file);
+  lock_acquire(&fs_lock);
+  int retval = file_length(fds->file);
+  lock_release(&fs_lock);
+  return retval;
 }
 
 int sys_create(char *filename, int size) {
@@ -91,7 +107,10 @@ int sys_create(char *filename, int size) {
   if ((filename == NULL) || (size < 0) || (filename[0] == 0)) return -1;
   //printf("filename[0] is \"%d\"\n\n", filename[0]);
   if (strlen(filename) > 14) return 0;
-  return filesys_create(filename, size);
+  lock_acquire(&fs_lock);
+  int retval = filesys_create(filename, size);
+  lock_release(&fs_lock);
+  return retval;
 }
 
 struct fd_struct *fd_item(int fd) {
