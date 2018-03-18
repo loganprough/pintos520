@@ -223,7 +223,7 @@ thread_create (const char *name, int priority,
   struct child_struct *child = palloc_get_page(PAL_ZERO);
   child->id = tid;
   sema_init(&child->exited, 0);
-  printf("\nInitialized sema for %d, value %d\n\n", child->id, child->exited.value);
+  //printf("\nInitialized sema for %d, value %d\n\n", child->id, child->exited.value);
   list_push_front(&thread_current()->list_children, &child->celem);
   t->child = child;
 
@@ -316,11 +316,11 @@ thread_exit (int status)
 #ifdef USERPROG
   struct thread *t = thread_current();
   t->child->status = status;
-  printf("\nabout to up sema for %d, value is %d\n\n", t->child->id, t->child->exited.value);
-  sema_up(&t->child->exited);
-  printf("\nupped sema for %d, value is %d\n\n", t->child->id, t->child->exited.value);
-  process_exit ();
   printf("%s: exit(%d)\n", t->name, status);
+  //printf("\nabout to up sema for %d, value is %d\n\n", t->child->id, t->child->exited.value);
+  sema_up(&t->child->exited);
+  //printf("\nupped sema for %d, value is %d\n\n", t->child->id, t->child->exited.value);
+  process_exit ();
 #endif
 
   /* Remove thread from all threads list, set our status to dying,
