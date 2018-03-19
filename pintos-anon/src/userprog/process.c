@@ -109,7 +109,7 @@ process_wait (tid_t child_tid)
   struct child_struct *child = NULL;
   for(e = list_begin(lc); e != list_end(lc); e = list_next(e)) {
     struct child_struct *c = list_entry(e, struct child_struct, celem);
-    if (c->id == (int)child_tid) child = c;
+    if (c->id == (int)child_tid) child = c; 
   }
 
   if (child == NULL) return -1;
