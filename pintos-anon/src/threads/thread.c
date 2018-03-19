@@ -226,6 +226,7 @@ thread_create (const char *name, int priority,
   //printf("\nInitialized sema for %d, value %d\n\n", child->id, child->exited.value);
   list_push_front(&thread_current()->list_children, &child->celem);
   t->child = child;
+  t->child->waited = false;
 
   /* Add to run queue. */
   thread_unblock (t);

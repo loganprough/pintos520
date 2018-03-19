@@ -30,6 +30,7 @@ struct fd_struct {
 struct child_struct {
   int id;
   struct semaphore exited;
+  bool waited;
   int status;
   struct list_elem celem;
 };

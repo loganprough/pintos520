@@ -112,12 +112,12 @@ process_wait (tid_t child_tid)
     if (c->id == (int)child_tid) child = c; 
   }
 
-  if (child == NULL) return -1;
+  if (child == NULL || child->waited) return -1;
   //printf("\nSemaphore value for %d is %di\n\n", child->id, child->exited.value);
   sema_down(&child->exited);
+  child->waited = true;
   //printf("\nDowned sema for %d, value now %d\n\n", child->id, child->exited.value);
   //timer_sleep(20000);
-  list_remove(&child->celem);
   return child->status;
 }
 
