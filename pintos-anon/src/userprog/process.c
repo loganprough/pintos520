@@ -20,6 +20,8 @@
 #include "threads/vaddr.h"
 #include "threads/synch.h"
 #include "devices/timer.h"
+#include "vm/frame.h"
+#include "vm/frame.c"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -68,7 +70,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -433,7 +435,7 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
       /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
+      uint8_t *kpage = fralloc(PAL_USER); //palloc_get_page (PAL_USER);
       if (kpage == NULL)
         return false;
 
@@ -479,7 +481,7 @@ setup_stack (void **esp, const char *file_name)
     return TID_ERROR;
   strlcpy(fn_cpy, file_name, PGSIZE);
 
-  kpage = palloc_get_page (PAL_USER | PAL_ZERO);
+  kpage = fralloc(PAL_USER | PAL_ZERO);//palloc_get_page (PAL_USER | PAL_ZERO);
   if (kpage != NULL) 
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
