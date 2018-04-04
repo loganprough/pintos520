@@ -1,24 +1,23 @@
-#ifndef FRAMEH
-#define FRAMEH
+#ifndef VM_FRAME_H
+#define VM_FRAME_H
 
-// Frame table stuff
+#include <stdbool.h>
 #include "threads/synch.h"
-#include "threads/palloc.h"
-#include "vm/page.h"
 
-// Lock for frame table
-struct lock lock_ft;
-// List for frame table entries
-struct list ft;
+/* A physical frame. */
+struct frame 
+  {
+    struct lock lock;           /* Prevent simultaneous access. */
+    void *base;                 /* Kernel virtual base address. */
+    struct page *page;          /* Mapped process page, if any. */
+  };
 
-// Entry in the frame table
-struct ft_entry {
-  void *frame; // Pointer to the frame
-  struct thread *thread; // Thread using the frame
-  struct list_elem ftelem; // List element for list ft
-};
+void frame_init (void);
 
-void *fralloc(enum palloc_flags flags);
-void init_ft(void);
+struct frame *frame_alloc_and_lock (struct page *);
+void frame_lock (struct page *);
 
-#endif
+void frame_free (struct frame *);
+void frame_unlock (struct frame *);
+
+#endif /* vm/frame.h */

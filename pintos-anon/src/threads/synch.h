@@ -4,11 +4,6 @@
 #include <list.h>
 #include <stdbool.h>
 
-struct int_elem {
-  int pri;
-  struct list_elem elem;
-};
-
 /* A counting semaphore. */
 struct semaphore 
   {
@@ -45,9 +40,6 @@ void cond_init (struct condition *);
 void cond_wait (struct condition *, struct lock *);
 void cond_signal (struct condition *, struct lock *);
 void cond_broadcast (struct condition *, struct lock *);
-
-// Compare semaphore waiter priority
-bool sem_less(const struct list_elem *a, const struct list_elem *b, void *aux);
 
 /* Optimization barrier.
 
