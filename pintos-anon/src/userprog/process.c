@@ -51,6 +51,14 @@ process_execute (const char *file_name)
   exec.file_name = file_name;
   sema_init (&exec.load_done, 0);
 
+  // Make sure file exists
+  char *fn = palloc_get_page(PAL_ZERO);
+  for(int cur = 0; file_name[cur] != ' ' && cur < 128; cur++) fn[cur] = file_name[cur];
+  // Make sure file exists before call to thread_create()
+  struct file *f = filesys_open(fn);
+  if (!f) return -1;
+  file_close(f);
+
   /* Create a new thread to execute FILE_NAME. */
   strlcpy (thread_name, file_name, sizeof thread_name);
   strtok_r (thread_name, " ", &save_ptr);
