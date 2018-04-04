@@ -1,3 +1,5 @@
+#include "vm/page.c"
+#include "vm/frame.h"
 #include "userprog/exception.h"
 #include <inttypes.h>
 #include <stdio.h>
@@ -151,11 +153,19 @@ page_fault (struct intr_frame *f)
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
      which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
+  
+  // Try to find it in sup page table, if it's not there
+  // then they screwed up
+  struct spt_entry *spte;
+  if ((spte = find_spte(fault_addr)) != NULL) load_page(spte);
+  else {
+    // Kill it with page fault if we failed
+    printf ("Page fault at %p: %s error %s page in %s context.\n",
           fault_addr,
           not_present ? "not present" : "rights violation",
           write ? "writing" : "reading",
           user ? "user" : "kernel");
-  kill (f);
+    kill (f);
+  }
 }
 

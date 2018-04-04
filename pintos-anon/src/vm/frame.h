@@ -3,6 +3,8 @@
 
 // Frame table stuff
 #include "threads/synch.h"
+#include "threads/palloc.h"
+#include "vm/page.h"
 
 // Lock for frame table
 struct lock lock_ft;

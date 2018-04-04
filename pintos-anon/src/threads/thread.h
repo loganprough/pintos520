@@ -108,6 +108,8 @@ struct thread
     struct child_struct *child; // child struct in parent's children list
 #endif
 
+    struct list spt;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
