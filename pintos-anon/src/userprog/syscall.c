@@ -373,7 +373,50 @@ sys_read (int handle, void *udst_, unsigned size)
    
   return bytes_read;
 }
+
+// Write to mmaped file
+static int
+mm_write (struct file *file, void *usrc_, unsigned size) 
+{
+  uint8_t *usrc = usrc_;
+  int bytes_written = 0;
+
+  while (size > 0) 
+    {
+      /* How much bytes to write to this page? */
+      size_t page_left = PGSIZE - pg_ofs (usrc);
+      size_t write_amt = size < page_left ? size : page_left;
+      off_t retval;
+
+      /* Write from page into file. */
+      if (!page_lock (usrc, false)) 
+        thread_exit ();
+      lock_acquire (&fs_lock);
+      retval = file_write (file, usrc, write_amt);
+      lock_release (&fs_lock);
+      page_unlock (usrc);
+
+      /* Handle return value. */
+      if (retval < 0) 
+        {
+          if (bytes_written == 0)
+            bytes_written = -1;
+          break;
+        }
+      bytes_written += retval;
+
+      /* If it was a short write we're done. */
+      if (retval != (off_t) write_amt)
+        break;
+
+      /* Advance. */
+      usrc += retval;
+      size -= retval;
+    }
  
+  return bytes_written;
+}
+
 /* Write system call. */
 static int
 sys_write (int handle, void *usrc_, unsigned size) 
@@ -505,6 +548,14 @@ static void
 unmap (struct mapping *m) 
 {
 /* add code here */
+  
+  //lock_acquire(&fs_lock);
+  //file_write(m->file, m->base, m->page_cnt * PGSIZE);
+  //file_close(m->file);
+  //lock_release(&fs_lock);
+  //file_close(m->file);
+  //for (; m->page_cnt > 0; m->base += PGSIZE) page_deallocate(m->base);
+  mm_write(m->file, m->base, m->page_cnt * PGSIZE);  
 }
  
 /* Mmap system call. */
