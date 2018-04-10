@@ -386,14 +386,17 @@ mm_write (struct file *file, void *usrc_, unsigned size)
       /* How much bytes to write to this page? */
       size_t page_left = PGSIZE - pg_ofs (usrc);
       size_t write_amt = size < page_left ? size : page_left;
-      off_t retval;
+      off_t retval = 0;
 
       /* Write from page into file. */
       if (!page_lock (usrc, false)) 
         thread_exit ();
-      lock_acquire (&fs_lock);
-      retval = file_write (file, usrc, write_amt);
-      lock_release (&fs_lock);
+
+      if (pagedir_is_dirty(thread_current()->pagedir, pg_round_down(usrc))) {
+        lock_acquire (&fs_lock);
+        retval = file_write (file, usrc, write_amt);
+        lock_release (&fs_lock);
+      }
       page_unlock (usrc);
 
       /* Handle return value. */
@@ -555,7 +558,7 @@ unmap (struct mapping *m)
   //lock_release(&fs_lock);
   //file_close(m->file);
   //for (; m->page_cnt > 0; m->base += PGSIZE) page_deallocate(m->base);
-  mm_write(m->file, m->base, m->page_cnt * PGSIZE);  
+  mm_write(m->file, m->base, m->page_cnt * PGSIZE);
 }
  
 /* Mmap system call. */
@@ -612,7 +615,11 @@ static int
 sys_munmap (int mapping) 
 {
 /* add code here */
-
+  struct mapping *m = lookup_mapping(mapping);
+  unmap(m);
+  lock_acquire(&fs_lock);
+  file_close(m->file);
+  lock_release(&fs_lock);
   return 0;
 }
  
