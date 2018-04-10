@@ -152,7 +152,11 @@ page_fault (struct intr_frame *f)
   /* Allow the pager to try to handle it. */
   if (user && not_present)
     {
-      if (!page_in (fault_addr))
+      // Also make sure we're not reading a page below the stack pointer
+      // Would have preferred to check this with the rest of the stack
+      // growth functionality, but there wasn't a practical way to get
+      // ESP to that function
+      if ((fault_addr == f->esp - 4096) || !page_in (fault_addr)) 
         thread_exit ();
       return;
     }
