@@ -10,7 +10,8 @@
 #include "threads/vaddr.h"
 
 /* Maximum size of process stack, in bytes. */
-#define STACK_MAX (1024 * 1024)
+//#define STACK_MAX (1024 * 1024)
+#define STACK_MAX (1024 * 512)
 
 /* Destroys a page, which must be in the current process's
    page table.  Used as a callback for hash_destroy(). */
@@ -53,7 +54,15 @@ page_for_addr (const void *address)
       /* No page.  Expand stack? */
 
 /* add code */
-
+      // If this address is within the maximum stack size, allocate
+      // a page for it.
+      /*
+      if (pg_round_down(address) > PHYS_BASE - STACK_MAX) {
+        struct page *p =  page_allocate(pg_round_down(address), true);
+        if (p != NULL) p->frame = frame_alloc_and_lock(p);
+        return p;
+      }
+      */
     }
   return NULL;
 }
