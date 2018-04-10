@@ -56,13 +56,18 @@ page_for_addr (const void *address)
 /* add code */
       // If this address is within the maximum stack size, allocate
       // a page for it.
-      
       if (pg_round_down(address) > PHYS_BASE - STACK_MAX) {
         struct page *p =  page_allocate(pg_round_down(address), true);
-        if (p != NULL) p->frame = frame_alloc_and_lock(p);
-        return p;
+        if (p != NULL) {
+          p->frame = frame_alloc_and_lock(p);
+          if (p->frame != NULL) {
+            p->read_only = false;
+            p->private = false;
+            frame_unlock(p->frame);
+            return p;
+          }
+        }
       }
-      
     }
   return NULL;
 }
